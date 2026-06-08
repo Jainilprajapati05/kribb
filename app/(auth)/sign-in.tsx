@@ -4,12 +4,28 @@ import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+
+const C = {
+  bg: "#FAF7F2",
+  surface: "#FFFFFF",
+  border: "#EDE8E0",
+  accent: "#C4622D",
+  accentDim: "#C4622D14",
+  text: "#1C1917",
+  textMuted: "#A89A8A",
+  textSubtle: "#C9BCB0",
+  inputBg: "#FDFBF8",
+  error: "#DC2626",
+};
 
 export default function SignIn() {
   const [email, setEmail] = useState("");
@@ -18,25 +34,16 @@ export default function SignIn() {
   const inputRef = useRef<TextInput>(null);
 
   const { signIn, errors, fetchStatus } = useSignIn();
-
   const router = useRouter();
-
   const isLoading = fetchStatus === "fetching";
 
   const onVerifyPress = async () => {
-    await signIn.mfa.verifyEmailCode({
-      code,
-    });
-
+    await signIn.mfa.verifyEmailCode({ code });
     if (signIn.status === "complete") {
       await signIn.finalize({
         navigate: ({ session, decorateUrl }) => {
-          if (session?.currentTask) {
-            console.log(session.currentTask);
-            return;
-          }
-          const url = decorateUrl("/");
-          router.replace(url as any);
+          if (session?.currentTask) return;
+          router.replace(decorateUrl("/") as any);
         },
       });
     }
@@ -44,11 +51,7 @@ export default function SignIn() {
 
   const onSignInPress = async () => {
     if (!signIn) return;
-    const { error } = await signIn.password({
-      emailAddress: email,
-      password,
-    });
-
+    const { error } = await signIn.password({ emailAddress: email, password });
     if (error) {
       alert(error.message);
       return;
@@ -57,63 +60,48 @@ export default function SignIn() {
     if (signIn.status === "complete") {
       await signIn.finalize({
         navigate: ({ session, decorateUrl }) => {
-          if (session?.currentTask) {
-            console.log(session.currentTask);
-            return;
-          }
-          const url = decorateUrl("/");
-          router.replace(url as any);
+          if (session?.currentTask) return;
+          router.replace(decorateUrl("/") as any);
         },
       });
     } else if (signIn.status === "needs_second_factor") {
       await signIn.mfa.sendPhoneCode();
     } else if (signIn.status === "needs_client_trust") {
       const emailCodeFactor = signIn.supportedSecondFactors.find(
-        (factor) => factor.strategy === "email_code",
+        (f) => f.strategy === "email_code",
       );
-      if (emailCodeFactor) {
-        await signIn.mfa.sendEmailCode();
-      }
-    } else {
-      console.error("sign-in attempt is not complete", signIn);
+      if (emailCodeFactor) await signIn.mfa.sendEmailCode();
     }
-
-    // if (!error) {
-    //   await signUp.verifications.sendEmailCode();
-    // }
   };
 
+  // ── OTP / Trust verification view ──────────────────────────
   if (signIn.status === "needs_client_trust") {
     return (
-      <View className="flex-1 justify-center px-6 py-12">
+      <View style={styles.otpRoot}>
         <Image
           source={require("../../assets/images/kribb.png")}
-          className="w-32 h-16 mb-8"
+          style={styles.logo}
           resizeMode="contain"
         />
-
-        <Text className="text-3xl font-bold text-gray-800 mb-2">
-          Verify your identity
-        </Text>
-
-        <Text className="text-gray-500 mb-8">We sent a code to {email}</Text>
+        <Text style={styles.heading}>Verify your identity</Text>
+        <Text style={styles.subheading}>We sent a 6-digit code to {email}</Text>
 
         <TouchableOpacity
           activeOpacity={1}
           onPress={() => inputRef.current?.focus()}
+          style={styles.otpRow}
         >
-          <View className="flex-row justify-center gap-3 mb-6">
-            {[0, 1, 2, 3, 4, 5].map((index) => (
-              <View
-                key={index}
-                className={`w-12 h-14 rounded-xl items-center justify-center border-2 ${
-                  index === code.length ? "border-blue-600" : "border-gray-300"
-                }`}
-              >
-                <Text className="text-xl font-bold">{code[index] || ""}</Text>
-              </View>
-            ))}
-          </View>
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <View
+              key={i}
+              style={[
+                styles.otpCell,
+                i === code.length && styles.otpCellActive,
+              ]}
+            >
+              <Text style={styles.otpChar}>{code[i] || ""}</Text>
+            </View>
+          ))}
         </TouchableOpacity>
 
         <TextInput
@@ -124,116 +112,230 @@ export default function SignIn() {
           maxLength={6}
           autoFocus
           caretHidden
-          style={{
-            position: "absolute",
-            width: 1,
-            height: 1,
-            opacity: 0,
-          }}
+          style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
         />
 
         {errors?.fields?.code && (
-          <Text className="text-red-500 mb-4">
-            {errors.fields.code.message}
-          </Text>
+          <Text style={styles.errorText}>{errors.fields.code.message}</Text>
         )}
 
         <TouchableOpacity
           onPress={onVerifyPress}
           disabled={isLoading}
-          className="w-full bg-blue-600 rounded-xl py-4 items-center mb-4"
+          style={[styles.primaryBtn, isLoading && { opacity: 0.7 }]}
+          activeOpacity={0.85}
         >
           {isLoading ? (
-            <ActivityIndicator color="white" />
+            <ActivityIndicator color="#fff" />
           ) : (
-            <Text className="text-white font-bold text-base">Verify</Text>
+            <Text style={styles.primaryBtnText}>Verify</Text>
           )}
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={() => signIn.mfa.sendEmailCode()}
-          className="py-2"
+          style={styles.linkBtn}
         >
-          <Text className="text-blue-600 font-semibold">I need a new code</Text>
+          <Text style={styles.linkText}>Resend code</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
+  // ── Main sign-in form ───────────────────────────────────────
   return (
     <ScrollView
-      contentContainerStyle={{
-        flexGrow: 1,
-      }}
-      className="bg-white"
+      style={styles.scroll}
+      contentContainerStyle={styles.scrollContent}
       keyboardShouldPersistTaps="handled"
     >
-      <View className="flex-1 justify-center px-6 py-12">
-        <Image
-          source={require("../../assets/images/kribb.png")}
-          className="w-32 h-16 mb-8"
-          resizeMode="contain"
-        />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
+        <View style={styles.formRoot}>
+          <Image
+            source={require("../../assets/images/kribb.png")}
+            style={styles.logo}
+            resizeMode="contain"
+          />
 
-        <Text className="text-3xl font-bold text-gray-800 mb-2">
-          Welcome back
-        </Text>
+          <Text style={styles.heading}>Welcome back</Text>
+          <Text style={styles.subheading}>Sign in to your account</Text>
 
-        <Text className="text-gray-500 mb-8">Sign in to your account </Text>
-
-        <TextInput
-          className="w-full border border-gray-300 rounded-xl px-4 py-3 mb-4"
-          placeholder="Email Address"
-          placeholderTextColor="#9CA3AF"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-
-        {errors?.fields?.identifier && (
-          <Text className="text-red-500 mb-4">
-            {errors.fields.identifier.message}
-          </Text>
-        )}
-
-        <TextInput
-          className="w-full border border-gray-300 rounded-xl px-4 py-3 mb-6"
-          placeholder="Password"
-          placeholderTextColor="#9CA3AF"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-
-        {errors?.fields?.password && (
-          <Text className="text-red-500 mb-4">
-            {errors.fields.password.message}
-          </Text>
-        )}
-
-        <TouchableOpacity
-          onPress={onSignInPress}
-          disabled={isLoading}
-          className="w-full bg-blue-600 rounded-xl py-4 items-center mb-4"
-        >
-          {isLoading ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <Text className="text-white font-bold text-base">Sign In</Text>
+          {/* Email */}
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="you@example.com"
+            placeholderTextColor={C.textSubtle}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          {errors?.fields?.identifier && (
+            <Text style={styles.errorText}>
+              {errors.fields.identifier.message}
+            </Text>
           )}
-        </TouchableOpacity>
 
-        <View className="flex-row justify-center">
-          <Text className="text-gray-500">Don&apos;t have an account? </Text>
+          {/* Password */}
+          <Text style={[styles.label, { marginTop: 14 }]}>Password</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="••••••••"
+            placeholderTextColor={C.textSubtle}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+          {errors?.fields?.password && (
+            <Text style={styles.errorText}>
+              {errors.fields.password.message}
+            </Text>
+          )}
 
-          <Link href="/sign-up">
-            <Text className="text-blue-600 font-semibold">Sign Up</Text>
-          </Link>
+          {/* Forgot */}
+          <TouchableOpacity
+            onPress={() => router.push("/forgot-password")}
+            style={styles.forgotBtn}
+          >
+            <Text style={styles.linkText}>Forgot password?</Text>
+          </TouchableOpacity>
+
+          {/* CTA */}
+          <TouchableOpacity
+            onPress={onSignInPress}
+            disabled={isLoading}
+            style={[styles.primaryBtn, isLoading && { opacity: 0.7 }]}
+            activeOpacity={0.85}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.primaryBtnText}>Sign In</Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Footer */}
+          <View style={styles.footerRow}>
+            <Text style={styles.footerText}>Don't have an account? </Text>
+            <Link href="/sign-up">
+              <Text style={styles.linkText}>Sign Up</Text>
+            </Link>
+          </View>
+
+          <View nativeID="clerk-captcha" style={{ marginTop: 24 }} />
         </View>
-
-        <View className="mt-6" nativeID="clerk-captcha" />
-      </View>
+      </KeyboardAvoidingView>
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  scroll: { flex: 1, backgroundColor: "#FAF7F2" },
+  scrollContent: { flexGrow: 1 },
+  formRoot: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 48,
+  },
+  otpRoot: {
+    flex: 1,
+    backgroundColor: "#FAF7F2",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 48,
+  },
+  logo: { width: 100, height: 40, marginBottom: 36 },
+  heading: {
+    fontSize: 30,
+    fontWeight: "800",
+    color: "#1C1917",
+    letterSpacing: -0.7,
+    marginBottom: 6,
+  },
+  subheading: {
+    fontSize: 14,
+    color: "#A89A8A",
+    marginBottom: 32,
+    lineHeight: 20,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#A89A8A",
+    marginBottom: 7,
+    letterSpacing: 0.2,
+  },
+  input: {
+    backgroundColor: "#FDFBF8",
+    borderWidth: 1,
+    borderColor: "#EDE8E0",
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: "#1C1917",
+  },
+  errorText: {
+    fontSize: 12,
+    color: "#DC2626",
+    marginTop: 5,
+    marginBottom: 4,
+    marginLeft: 2,
+  },
+  forgotBtn: { alignSelf: "flex-end", marginTop: 10, marginBottom: 24 },
+  primaryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#C4622D",
+    borderRadius: 14,
+    paddingVertical: 16,
+    shadowColor: "#C4622D",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
+    elevation: 5,
+    marginBottom: 20,
+  },
+  primaryBtnText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#fff",
+    letterSpacing: 0.2,
+  },
+  linkBtn: { alignSelf: "center", paddingVertical: 8 },
+  linkText: { fontSize: 13, fontWeight: "700", color: "#C4622D" },
+  footerRow: { flexDirection: "row", justifyContent: "center" },
+  footerText: { fontSize: 13, color: "#A89A8A" },
+  // OTP
+  otpRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 10,
+    marginBottom: 24,
+  },
+  otpCell: {
+    width: 48,
+    height: 56,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "#EDE8E0",
+    backgroundColor: "#FDFBF8",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  otpCellActive: {
+    borderColor: "#C4622D",
+    backgroundColor: "#C4622D08",
+  },
+  otpChar: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#1C1917",
+  },
+});

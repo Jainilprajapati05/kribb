@@ -4,12 +4,27 @@ import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+
+const C = {
+  bg: "#FAF7F2",
+  surface: "#FFFFFF",
+  border: "#EDE8E0",
+  accent: "#C4622D",
+  text: "#1C1917",
+  textMuted: "#A89A8A",
+  textSubtle: "#C9BCB0",
+  inputBg: "#FDFBF8",
+  error: "#DC2626",
+};
 
 export default function SignUp() {
   const [firstName, setFirstName] = useState("");
@@ -21,30 +36,20 @@ export default function SignUp() {
 
   const { signUp, errors, fetchStatus } = useSignUp();
   const { isSignedIn } = useAuth();
-
   const router = useRouter();
-
   const isLoading = fetchStatus === "fetching";
 
   const onVerifyPress = async () => {
     if (!signUp) return;
-    await signUp.verifications.verifyEmailCode({
-      code,
-    });
-
+    await signUp.verifications.verifyEmailCode({ code });
     if (signUp.status === "complete") {
       await signUp.finalize({
         navigate: ({ decorateUrl }) => {
-          const url = decorateUrl("/");
-          router.replace(url as any);
+          router.replace(decorateUrl("/") as any);
         },
       });
     }
   };
-
-  if (signUp.status === "complete" && !isSignedIn) {
-    return null;
-  }
 
   const onSignUpPress = async () => {
     if (!signUp) return;
@@ -54,52 +59,47 @@ export default function SignUp() {
       firstName,
       lastName,
     });
-
     if (error) {
       alert(error.message);
       return;
     }
-
-    if (!error) {
-      await signUp.verifications.sendEmailCode();
-    }
+    await signUp.verifications.sendEmailCode();
   };
 
+  if (signUp.status === "complete" && !isSignedIn) return null;
+
+  // ── OTP verification view ──────────────────────────────────
   if (
     signUp.status === "missing_requirements" &&
     signUp.unverifiedFields.includes("email_address") &&
     signUp.missingFields.length === 0
   ) {
     return (
-      <View className="flex-1 justify-center px-6 py-12">
+      <View style={styles.otpRoot}>
         <Image
           source={require("../../assets/images/kribb.png")}
-          className="w-32 h-16 mb-8"
+          style={styles.logo}
           resizeMode="contain"
         />
-
-        <Text className="text-3xl font-bold text-gray-800 mb-2">
-          Create an account
-        </Text>
-
-        <Text className="text-gray-500 mb-8">We sent a code to {email}</Text>
+        <Text style={styles.heading}>Check your email</Text>
+        <Text style={styles.subheading}>We sent a 6-digit code to {email}</Text>
 
         <TouchableOpacity
           activeOpacity={1}
           onPress={() => inputRef.current?.focus()}
+          style={styles.otpRow}
         >
-          <View className="flex-row justify-center gap-3 mb-6">
-            {[0, 1, 2, 3, 4, 5].map((index) => (
-              <View
-                key={index}
-                className={`w-12 h-14 rounded-xl items-center justify-center border-2 ${
-                  index === code.length ? "border-blue-600" : "border-gray-300"
-                }`}
-              >
-                <Text className="text-xl font-bold">{code[index] || ""}</Text>
-              </View>
-            ))}
-          </View>
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <View
+              key={i}
+              style={[
+                styles.otpCell,
+                i === code.length && styles.otpCellActive,
+              ]}
+            >
+              <Text style={styles.otpChar}>{code[i] || ""}</Text>
+            </View>
+          ))}
         </TouchableOpacity>
 
         <TextInput
@@ -110,136 +110,251 @@ export default function SignUp() {
           maxLength={6}
           autoFocus
           caretHidden
-          style={{
-            position: "absolute",
-            width: 1,
-            height: 1,
-            opacity: 0,
-          }}
+          style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
         />
 
         {errors?.fields?.code && (
-          <Text className="text-red-500 mb-4">
-            {errors.fields.code.message}
-          </Text>
+          <Text style={styles.errorText}>{errors.fields.code.message}</Text>
         )}
 
         <TouchableOpacity
           onPress={onVerifyPress}
           disabled={isLoading}
-          className="w-full bg-blue-600 rounded-xl py-4 items-center mb-4"
+          style={[styles.primaryBtn, isLoading && { opacity: 0.7 }]}
+          activeOpacity={0.85}
         >
           {isLoading ? (
-            <ActivityIndicator color="white" />
+            <ActivityIndicator color="#fff" />
           ) : (
-            <Text className="text-white font-bold text-base">Verify</Text>
+            <Text style={styles.primaryBtnText}>Verify Email</Text>
           )}
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={() => signUp.verifications.sendEmailCode()}
-          className="py-2"
+          style={styles.linkBtn}
         >
-          <Text className="text-blue-600 font-semibold">I need a new code</Text>
+          <Text style={styles.linkText}>Resend code</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
+  // ── Main sign-up form ───────────────────────────────────────
   return (
     <ScrollView
-      contentContainerStyle={{
-        flexGrow: 1,
-      }}
-      className="bg-white"
+      style={styles.scroll}
+      contentContainerStyle={styles.scrollContent}
       keyboardShouldPersistTaps="handled"
     >
-      <View className="flex-1 justify-center px-6 py-12">
-        <Image
-          source={require("../../assets/images/kribb.png")}
-          className="w-32 h-16 mb-8"
-          resizeMode="contain"
-        />
-
-        <Text className="text-3xl font-bold text-gray-800 mb-2">
-          Create an account
-        </Text>
-
-        <Text className="text-gray-500 mb-8">Find your dream home today</Text>
-
-        <View className="flex-row gap-3 mb-4">
-          <TextInput
-            className="flex-1 border border-gray-300 rounded-xl px-4 py-3"
-            placeholder="First name"
-            placeholderTextColor="#9CA3AF"
-            autoCapitalize="words"
-            value={firstName}
-            onChangeText={setFirstName}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
+        <View style={styles.formRoot}>
+          <Image
+            source={require("../../assets/images/kribb.png")}
+            style={styles.logo}
+            resizeMode="contain"
           />
 
+          <Text style={styles.heading}>Create account</Text>
+          <Text style={styles.subheading}>Find your dream home today</Text>
+
+          {/* Name row */}
+          <View style={styles.nameRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>First name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Arjun"
+                placeholderTextColor={C.textSubtle}
+                autoCapitalize="words"
+                value={firstName}
+                onChangeText={setFirstName}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>Last name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Sharma"
+                placeholderTextColor={C.textSubtle}
+                autoCapitalize="words"
+                value={lastName}
+                onChangeText={setLastName}
+              />
+            </View>
+          </View>
+
+          {/* Email */}
+          <Text style={[styles.label, { marginTop: 14 }]}>Email</Text>
           <TextInput
-            className="flex-1 border border-gray-300 rounded-xl px-4 py-3"
-            placeholder="Last name"
-            placeholderTextColor="#9CA3AF"
-            autoCapitalize="words"
-            value={lastName}
-            onChangeText={setLastName}
+            style={styles.input}
+            placeholder="you@example.com"
+            placeholderTextColor={C.textSubtle}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
           />
-        </View>
-
-        <TextInput
-          className="w-full border border-gray-300 rounded-xl px-4 py-3 mb-4"
-          placeholder="Email Address"
-          placeholderTextColor="#9CA3AF"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-
-        {errors?.fields?.emailAddress && (
-          <Text className="text-red-500 mb-4">
-            {errors.fields.emailAddress.message}
-          </Text>
-        )}
-
-        <TextInput
-          className="w-full border border-gray-300 rounded-xl px-4 py-3 mb-6"
-          placeholder="Password"
-          placeholderTextColor="#9CA3AF"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-
-        {errors?.fields?.password && (
-          <Text className="text-red-500 mb-4">
-            {errors.fields.password.message}
-          </Text>
-        )}
-
-        <TouchableOpacity
-          onPress={onSignUpPress}
-          disabled={isLoading}
-          className="w-full bg-blue-600 rounded-xl py-4 items-center mb-4"
-        >
-          {isLoading ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <Text className="text-white font-bold text-base">Sign Up</Text>
+          {errors?.fields?.emailAddress && (
+            <Text style={styles.errorText}>
+              {errors.fields.emailAddress.message}
+            </Text>
           )}
-        </TouchableOpacity>
 
-        <View className="flex-row justify-center">
-          <Text className="text-gray-500">Already have an account? </Text>
+          {/* Password */}
+          <Text style={[styles.label, { marginTop: 14 }]}>Password</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="••••••••"
+            placeholderTextColor={C.textSubtle}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+          {errors?.fields?.password && (
+            <Text style={styles.errorText}>
+              {errors.fields.password.message}
+            </Text>
+          )}
 
-          <Link href="/sign-in">
-            <Text className="text-blue-600 font-semibold">Sign In</Text>
-          </Link>
+          {/* CTA */}
+          <TouchableOpacity
+            onPress={onSignUpPress}
+            disabled={isLoading}
+            style={[
+              styles.primaryBtn,
+              { marginTop: 28 },
+              isLoading && { opacity: 0.7 },
+            ]}
+            activeOpacity={0.85}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.primaryBtnText}>Create Account</Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Footer */}
+          <View style={styles.footerRow}>
+            <Text style={styles.footerText}>Already have an account? </Text>
+            <Link href="/sign-in">
+              <Text style={styles.linkText}>Sign In</Text>
+            </Link>
+          </View>
+
+          <View nativeID="clerk-captcha" style={{ marginTop: 24 }} />
         </View>
-
-        <View className="mt-6" nativeID="clerk-captcha" />
-      </View>
+      </KeyboardAvoidingView>
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  scroll: { flex: 1, backgroundColor: "#FAF7F2" },
+  scrollContent: { flexGrow: 1 },
+  formRoot: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 48,
+  },
+  otpRoot: {
+    flex: 1,
+    backgroundColor: "#FAF7F2",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 48,
+  },
+  logo: { width: 100, height: 40, marginBottom: 36 },
+  heading: {
+    fontSize: 30,
+    fontWeight: "800",
+    color: "#1C1917",
+    letterSpacing: -0.7,
+    marginBottom: 6,
+  },
+  subheading: {
+    fontSize: 14,
+    color: "#A89A8A",
+    marginBottom: 32,
+    lineHeight: 20,
+  },
+  nameRow: { flexDirection: "row", gap: 12 },
+  label: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#A89A8A",
+    marginBottom: 7,
+    letterSpacing: 0.2,
+  },
+  input: {
+    backgroundColor: "#FDFBF8",
+    borderWidth: 1,
+    borderColor: "#EDE8E0",
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: "#1C1917",
+  },
+  errorText: {
+    fontSize: 12,
+    color: "#DC2626",
+    marginTop: 5,
+    marginBottom: 4,
+    marginLeft: 2,
+  },
+  primaryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#C4622D",
+    borderRadius: 14,
+    paddingVertical: 16,
+    shadowColor: "#C4622D",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
+    elevation: 5,
+    marginBottom: 20,
+  },
+  primaryBtnText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#fff",
+    letterSpacing: 0.2,
+  },
+  linkBtn: { alignSelf: "center", paddingVertical: 8 },
+  linkText: { fontSize: 13, fontWeight: "700", color: "#C4622D" },
+  footerRow: { flexDirection: "row", justifyContent: "center" },
+  footerText: { fontSize: 13, color: "#A89A8A" },
+  otpRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 10,
+    marginBottom: 24,
+  },
+  otpCell: {
+    width: 48,
+    height: 56,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "#EDE8E0",
+    backgroundColor: "#FDFBF8",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  otpCellActive: {
+    borderColor: "#C4622D",
+    backgroundColor: "#C4622D08",
+  },
+  otpChar: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#1C1917",
+  },
+});

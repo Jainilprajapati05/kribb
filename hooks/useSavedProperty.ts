@@ -1,6 +1,6 @@
-import { useSupabase } from "@/hooks/useSupabase";
 import { useAuth } from "@clerk/expo";
 import { useEffect, useState } from "react";
+import { useSupabase } from "./useSupabase";
 
 export function useSavedProperty(propertyId: string, onUnsave?: () => void) {
   const { userId } = useAuth();
