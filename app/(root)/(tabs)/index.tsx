@@ -79,17 +79,18 @@ export default function HomeScreen() {
           <View>
             {/* Header */}
             <View style={styles.header}>
-              <Image
-                source={require("../../../assets/images/kribb.png")}
-                style={styles.logo}
-                resizeMode="contain"
-              />
-
-              <View style={styles.userInfo}>
+              <View>
                 <Text style={styles.greeting}>{getGreeting()} 👋</Text>
                 <Text style={styles.userName}>
                   {user?.firstName ?? "Welcome"}
                 </Text>
+              </View>
+              <View style={styles.logoWrapper}>
+                <Image
+                  source={require("../../../assets/images/kribb.png")}
+                  style={styles.logo}
+                  resizeMode="contain"
+                />
               </View>
             </View>
 
@@ -170,8 +171,8 @@ const styles = StyleSheet.create({
   listContent: { paddingBottom: 120 },
   header: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "flex-start",
     paddingHorizontal: 22,
     paddingTop: 16,
     paddingBottom: 20,
@@ -181,18 +182,13 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: C.textMuted,
     marginBottom: 3,
-    marginTop: 5,
-
     letterSpacing: 0.2,
   },
   userName: {
-    fontSize: 20,
+    fontSize: 26,
     fontWeight: "800",
     color: C.text,
     letterSpacing: -0.6,
-  },
-  userInfo: {
-    alignItems: "flex-end",
   },
   logoWrapper: {
     backgroundColor: C.surface,
@@ -206,11 +202,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-  logo: {
-    width: 110,
-    height: 40,
-    marginTop: 8,
-  },
+  logo: { width: 68, height: 26 },
   searchBar: {
     marginHorizontal: 20,
     marginBottom: 28,

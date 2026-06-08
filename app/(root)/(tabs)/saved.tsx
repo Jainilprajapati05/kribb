@@ -1,6 +1,5 @@
 import PropertyCard from "@/components/PropertyCard";
 import { useSupabase } from "@/hooks/useSupabase";
-
 import { Property } from "@/types";
 import { useAuth } from "@clerk/expo";
 import { Ionicons } from "@expo/vector-icons";
